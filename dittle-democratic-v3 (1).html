@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Dittle: The Democratic Edition (Ballot)</title>
+<style>
+:root{
+  --bg:#e9edf1; --card:#ffffff; --ink:#15212b; --muted:#5b6a76; --line:#cbd5dd;
+  --board:#b9c6d0; --cell:#f4f7f9; --b0:#d9ecf2; --b1:#e6dff0; --acc:#137a7f; --acc-ink:#ffffff;
+  --tilt:#6b7a85; --jump:#1f7a4d; --tj:#b36b00; --w0:#f7f7f4; --w1:#1d2328;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f161b; --card:#19232b; --ink:#e7eef2; --muted:#92a2ad; --line:#2b3a45;
+    --board:#26343e; --cell:#1b262e; --b0:#17323a; --b1:#2a2339; --acc:#3fc1c7; --acc-ink:#0f161b;
+    --tilt:#9aa9b3; --jump:#55c58b; --tj:#f0b04a; --w0:#f7f7f4; --w1:#1d2328;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;line-height:1.45;padding:20px 16px 48px}
+.wrap{max-width:600px;margin:0 auto}
+h1{font-family:Rockwell,"Roboto Slab",Georgia,serif;font-size:2rem;margin:0 0 2px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 14px}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+summary{cursor:pointer;font-weight:600}
+details p,details li{color:var(--muted);font-size:.93rem}
+details ul{padding-left:20px;margin:6px 0}
+.opts{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
+.opts label{display:flex;flex-direction:column;font-size:.82rem;color:var(--muted);gap:3px}
+select,button{font:inherit}
+select{padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.newbtn{padding:8px 16px;border-radius:8px;border:1px solid var(--acc);background:var(--acc);color:var(--acc-ink);font-weight:700;cursor:pointer}
+.councils{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.council{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.88rem}
+.council.turn{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.council b{display:block;margin-bottom:2px}
+.council span{color:var(--muted)}
+.status{min-height:2.7em;font-weight:600;margin-bottom:8px}
+.status.over{color:var(--acc);font-size:1.15rem}
+.board{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:var(--board);padding:6px;border-radius:12px}
+.cell{aspect-ratio:1;background:var(--cell);border-radius:8px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:3px;min-width:0}
+.cell.b0{background:var(--b0)}
+.cell.b1{background:var(--b1)}
+.die{width:100%;aspect-ratio:1;border-radius:18%;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:15%;border:2px solid;cursor:pointer;margin:0}
+.die i{border-radius:50%;background:transparent;display:block}
+.die i.on{background:currentColor}
+.die.o0{background:var(--w0);color:#1a1a1a;border-color:#8795a0}
+.die.o1{background:var(--w1);color:#f4f4f0;border-color:#0a0e11}
+@media (prefers-color-scheme:dark){.die.o1{border-color:#6b7a85}}
+.die.sel{outline:3px solid var(--acc);outline-offset:1px}
+.die.pd{outline:3px dashed var(--acc);outline-offset:1px}
+.die.last{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 45%,transparent)}
+.die:focus-visible,.chip:focus-visible,.newbtn:focus-visible,select:focus-visible,.card:focus-visible,.alt:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.chip{flex:1;min-height:0;border-radius:6px;border:2px solid;background:var(--card);color:var(--ink);font-weight:800;font-size:1rem;line-height:1;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.chip small{font-size:.58rem;font-weight:600;color:var(--muted)}
+.chip.k-tilt{border-color:var(--tilt)}
+.chip.k-jump{border-color:var(--jump)}
+.chip.k-tilt\+jump{border-color:var(--tj)}
+.chip.pr{border-color:var(--acc);background:var(--acc);color:var(--acc-ink);font-size:1.2rem}
+.chip.pr small{color:var(--acc-ink)}
+.actions{margin:12px 0}
+.cards{display:grid;gap:8px}
+.card{display:flex;gap:12px;align-items:center;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.card:hover{border-color:var(--acc)}
+.card .num{font-weight:800;font-size:1.3rem;min-width:1.6rem;text-align:center;color:var(--acc)}
+.card .t{font-weight:700}
+.card .by{font-size:.84rem;color:var(--muted)}
+.alt{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.alt:hover{border-color:var(--ink)}
+.hint{color:var(--muted);font-size:.86rem;margin:6px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem;color:var(--muted);margin:8px 2px 14px}
+.legend b{display:inline-block;width:12px;height:12px;border-radius:3px;border:2px solid;vertical-align:-2px;margin-right:4px}
+.sec{font-weight:700;margin:4px 0 6px}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 6px}
+.sc{font-size:.82rem;text-align:center;border-radius:6px;padding:4px 0;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.sc.w0{background:var(--w0);color:#1a1a1a;border-color:#8795a0;font-weight:700}
+.sc.w1{background:var(--w1);color:#f4f4f0;border-color:#0a0e11;font-weight:700}
+@media (prefers-color-scheme:dark){.sc.w1{border-color:#6b7a85}}
+.totals{margin:10px 2px 14px;font-size:.95rem}
+.totals div{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:5px 0}
+.totals .decides{font-weight:700}
+.log{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;max-height:200px;overflow:auto;font-size:.9rem}
+.log div{padding:2px 0;color:var(--muted)}
+.log div:first-child{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dittle: The Democratic Edition</h1>
+  <p class="sub">No one rules alone. Every move goes on a ballot and the whole council votes.</p>
+
+  <details>
+    <summary>How to play</summary>
+    <ul>
+      <li>Each side has seven dice in its base row, 6 facing up. Get your dice into the <b>opponent's base row</b>. The game ends the moment one side has all seven there.</li>
+      <li><b>Moves:</b> <b>tilt</b> a die one square forward or sideways (its number changes), <b>jump</b> over adjacent dice onto the empty square behind them, forward or sideways (number kept; straight chains allowed), or <b>tilt + jump</b> (tilt first, then jump, with one L-turn allowed). Never backward or diagonal.</li>
+      <li><b>Decisions are made by council.</b> Each side has three members with an equal vote. You sit on the White council with two advisers, Ava and Ben. Black is run by Cleo, Dan and Eli.</li>
+      <li><b>Every turn is a ballot:</b>
+        <ul>
+          <li>1. Each adviser puts a proposed move on the ballot, and the ballot always has at least two choices.</li>
+          <li>2. You can add your own proposal to the ballot. You can't skip the vote itself, but you may <b>abstain</b>: you are recorded as present, back nothing, and the others decide. A split goes to the chair.</li>
+          <li>3. One member, one vote. Your advisers vote on merit, not loyalty, so they may back your proposal or reject it.</li>
+          <li>4. The move with the most votes is played. In a three-way split, the <b>chair</b> breaks the tie. The chair rotates every turn.</li>
+        </ul>
+      </li>
+      <li><b>Winning is democratic too:</b> each column is a district. Your die in the far row is compared with the opponent's die in the same column, and the higher face takes the seat. Most districts wins, and the total of all faces breaks a tie. Switch Scoring to "Total" for classic rules.</li>
+      <li>If a side has no legal move, it passes. A session lasts at most 80 turns per side, then it is scored as it stands.</li>
+    </ul>
+  </details>
+
+  <div class="opts">
+    <label>Scoring
+      <select id="optScore"><option value="dem">Districts (democratic)</option><option value="sum">Total (classic)</option></select>
+    </label>
+    <button class="newbtn" id="newBtn">New game</button>
+  </div>
+
+  <div class="councils" id="councils"></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div class="board" id="board"></div>
+  <div class="actions" id="actions"></div>
+  <div class="legend" id="legend">
+    <span><b style="border-color:var(--tilt)"></b>Tilt (number changes)</span>
+    <span><b style="border-color:var(--jump)"></b>Jump (number kept)</span>
+    <span><b style="border-color:var(--tj)"></b>Tilt + jump</span>
+  </div>
+
+  <div class="sec">District results</div>
+  <div class="strip" id="strip"></div>
+  <div class="totals" id="totals"></div>
+
+  <div class="sec">Council record</div>
+  <div class="log" id="log" aria-label="Council record"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* Board size is an assumption: 7 columns, 7 rows. Change ROWS to resize. */
+const COLS = 7, ROWS = 7, N = COLS;
+const MAXPLIES = 160; // session limit: 80 turns per side
+const TARGET = [0, ROWS-1];
+const FWD = [-1, 1];
+const SIDE = ["White","Black"];
+const COUNCIL = [
+  [ {name:"You", human:true},
+    {name:"Ava", w:{adv:1.0, top:0.25, arr:1.6}},
+    {name:"Ben", w:{adv:1.5, top:0.10, arr:0.8}} ],
+  [ {name:"Cleo", w:{adv:0.7, top:0.60, arr:2.4}},
+    {name:"Dan",  w:{adv:1.1, top:0.30, arr:1.8}},
+    {name:"Eli",  w:{adv:1.5, top:0.10, arr:0.8}} ]
+];
+const $ = id => document.getElementById(id);
+let G, timer = null;
+
+/* ---------- dice physics ---------- */
+function rollDie(d, dr, dc){
+  const {t, n, e} = d;
+  if(dr === -1) return {t:7-n, n:t,   e};
+  if(dr ===  1) return {t:n,   n:7-t, e};
+  if(dc ===  1) return {t:7-e, n,     e:t};
+  return               {t:e,   n,     e:7-t};
+}
+
+/* ---------- move generation ---------- */
+function movesFor(S, di){
+  const d = S.dice[di], f = FWD[d.o];
+  const occ = new Set();
+  S.dice.forEach((x,i) => { if(i !== di) occ.add(x.r*COLS + x.c); });
+  const inB = (r,c) => r>=0 && r<ROWS && c>=0 && c<COLS;
+  const free = (r,c) => inB(r,c) && !occ.has(r*COLS+c);
+  const isOcc = (r,c) => inB(r,c) && occ.has(r*COLS+c);
+  const dirs = [[f,0],[0,-1],[0,1]];
+  const out = new Map();
+  const add = (r,c,o,kind) => {
+    const k = [r,c,o.t,o.n,o.e].join();
+    if(!out.has(k)) out.set(k, {di, r, c, t:o.t, n:o.n, e:o.e, kind});
+  };
+  const chain = (r,c,dir) => {
+    const res = []; let cr = r, cc = c;
+    while(isOcc(cr+dir[0], cc+dir[1]) && free(cr+2*dir[0], cc+2*dir[1])){
+      cr += 2*dir[0]; cc += 2*dir[1]; res.push([cr,cc]);
+    }
+    return res;
+  };
+  const o0 = {t:d.t, n:d.n, e:d.e};
+  for(const dir of dirs) for(const [r,c] of chain(d.r,d.c,dir)) add(r,c,o0,"jump");
+  for(const dir of dirs){
+    const r = d.r+dir[0], c = d.c+dir[1];
+    if(!free(r,c)) continue;
+    const o = rollDie(d, dir[0], dir[1]);
+    add(r,c,o,"tilt");
+    for(const a of dirs){
+      for(const [lr,lc] of chain(r,c,a)){
+        add(lr,lc,o,"tilt+jump");
+        for(const b of dirs){
+          if(a[0]*b[0] + a[1]*b[1] !== 0) continue;
+          for(const [pr,pc] of chain(lr,lc,b)) add(pr,pc,o,"tilt+jump");
+        }
+      }
+    }
+  }
+  return [...out.values()];
+}
+function allMoves(S, p){
+  const res = [];
+  S.dice.forEach((d,i) => { if(d.o === p) res.push(...movesFor(S,i)); });
+  return res;
+}
+function apply(S, m){
+  const dice = S.dice.map(x => ({...x}));
+  const d = dice[m.di];
+  d.r = m.r; d.c = m.c; d.t = m.t; d.n = m.n; d.e = m.e;
+  return {dice, turn: 1 - S.turn};
+}
+function arrivedAll(S, p){
+  return S.dice.filter(d => d.o === p && d.r === TARGET[p]).length === N;
+}
+
+/* ---------- scoring ---------- */
+function tally(S){
+  const val = [Array(COLS).fill(0), Array(COLS).fill(0)];
+  S.dice.forEach(d => { if(d.r === TARGET[d.o]) val[d.o][d.c] = d.t; });
+  const dist = [0,0], sum = [0,0], cols = [];
+  for(let c=0;c<COLS;c++){
+    const a = val[0][c], b = val[1][c];
+    sum[0] += a; sum[1] += b;
+    let w = -1;
+    if(a > b) w = 0; else if(b > a) w = 1;
+    if(w >= 0) dist[w]++;
+    cols.push({a,b,w});
+  }
+  return {dist, sum, cols};
+}
+function result(S, score){
+  const t = tally(S);
+  if(score === "dem" && t.dist[0] !== t.dist[1]) return t.dist[0] > t.dist[1] ? 0 : 1;
+  if(t.sum[0] !== t.sum[1]) return t.sum[0] > t.sum[1] ? 0 : 1;
+  return -1;
+}
+
+/* ---------- council members' judgment ---------- */
+function evalState(S, p, w){
+  let sc = 0;
+  for(const d of S.dice){
+    const adv = d.o === 0 ? (ROWS-1-d.r) : d.r;
+    const arrived = d.r === TARGET[d.o];
+    const v = adv*w.adv + (arrived ? d.t*w.arr : d.t*w.top);
+    sc += d.o === p ? v : -v;
+  }
+  return sc;
+}
+function negamax(S, depth, alpha, beta, w){
+  const p = S.turn;
+  if(depth === 0) return evalState(S,p,w);
+  const ms = allMoves(S,p);
+  if(!ms.length) return evalState(S,p,w);
+  let best = -Infinity;
+  for(const m of ms){
+    const ns = apply(S,m);
+    let v;
+    if(arrivedAll(ns,p)){
+      const r = result(ns, G.score);
+      v = r === p ? 10000+depth : (r === -1 ? 0 : -10000-depth);
+    } else v = -negamax(ns, depth-1, -beta, -alpha, w);
+    if(v > best) best = v;
+    if(best > alpha) alpha = best;
+    if(alpha >= beta) break;
+  }
+  return best;
+}
+function judge(S, p, m, w){
+  const ns = apply(S, m);
+  if(arrivedAll(ns,p)){
+    const r = result(ns, G.score);
+    return r === p ? 10000 : (r === -1 ? 0 : -10000);
+  }
+  return -negamax(ns, 1, -Infinity, Infinity, w);
+}
+function proposalFor(member, p){
+  const ms = allMoves(G.S, p);
+  let best = -Infinity, pick = ms[0];
+  for(const m of ms){
+    const v = judge(G.S, p, m, member.w) + Math.random()*0.4;
+    if(v > best){ best = v; pick = m; }
+  }
+  return pick;
+}
+
+/* ---------- game flow ---------- */
+const sq = (r,c) => "ABCDEFG"[c] + (ROWS - r);
+const mkey = m => [m.di,m.r,m.c,m.t,m.n,m.e].join();
+function describe(S, m){
+  const d = S.dice[m.di];
+  const k = m.kind === "tilt+jump" ? "tilt + jump" : m.kind;
+  return k + " " + sq(d.r,d.c) + " \u2192 " + sq(m.r,m.c) + " (shows " + m.t + ")";
+}
+function log(t){ G.log.unshift(t); }
+
+function newGame(){
+  clearTimeout(timer);
+  const dice = [];
+  for(let c=0;c<COLS;c++){
+    dice.push({o:0, r:ROWS-1, c, t:6, n:4, e:2});
+    dice.push({o:1, r:0,      c, t:6, n:3, e:5});
+  }
+  G = {
+    S:{dice, turn:0}, score:$("optScore").value,
+    phase:"wait", sel:null, opts:[], props:[], over:null, log:[], passes:0, last:null, turnNo:[0,0], plies:0
+  };
+  const d6 = () => 1 + Math.floor(Math.random()*6);
+  let a, b;
+  do { a = d6()+d6(); b = d6()+d6(); } while(a === b);
+  G.S.turn = a > b ? 0 : 1;
+  log("Opening roll: White " + a + ", Black " + b + ". " + SIDE[G.S.turn] + " moves first.");
+  startTurn();
+}
+
+function startTurn(){
+  while(!allMoves(G.S, G.S.turn).length){
+    log(SIDE[G.S.turn] + " has no legal move and passes.");
+    G.passes++;
+    if(G.passes >= 2){ finish(); return; }
+    G.S = {dice:G.S.dice, turn:1 - G.S.turn};
+  }
+  G.sel = null; G.opts = []; G.props = [];
+  if(G.S.turn === 0){
+    G.phase = "wait";
+    councilStage(0, null);
+  } else {
+    G.phase = "wait";
+    render();
+    clearTimeout(timer);
+    timer = setTimeout(() => councilStage(1, null), 900);
+  }
+}
+
+// humanMove: the player's proposal, or null if they leave it to the others
+function councilStage(p, humanMove){
+  const members = COUNCIL[p];
+  const props = [];
+  const addProp = (m, by) => {
+    const k = mkey(m);
+    const x = props.find(q => q.key === k);
+    if(x) x.by.push(by);
+    else props.push({key:k, m, by:[by], desc:describe(G.S, m)});
+  };
+  if(humanMove) addProp(humanMove, "You");
+  members.forEach(mb => { if(!mb.human) addProp(proposalFor(mb, p), mb.name); });
+  if(p === 0 && props.length < 2){
+    const adviser = members[2], have = new Set(props.map(x => x.key));
+    let bestV = -Infinity, pick = null;
+    for(const m of allMoves(G.S, p)){
+      if(have.has(mkey(m))) continue;
+      const v = judge(G.S, p, m, adviser.w) + Math.random()*0.4;
+      if(v > bestV){ bestV = v; pick = m; }
+    }
+    if(pick) addProp(pick, adviser.name);
+  }
+  G.props = props;
+  log(SIDE[p] + " ballot: " + props.map((x,i) => (i+1)+") "+x.desc+" ["+x.by.join(", ")+"]").join("; "));
+
+  if(props.length === 1){
+    log("All members agree. Unanimous.");
+    G.turnNo[p]++;
+    execute(props[0].m);
+    return;
+  }
+  if(p === 0){
+    G.phase = "vote";
+    render();
+  } else {
+    castVotes(p, null);
+  }
+}
+
+function castVotes(p, humanChoice){
+  const members = COUNCIL[p];
+  const votes = members.map(mb => {
+    if(mb.human) return humanChoice;
+    let best = -Infinity, pick = 0;
+    G.props.forEach((pr,i) => {
+      let v = judge(G.S, p, pr.m, mb.w);
+      if(pr.by.includes(mb.name)) v += 0.6;     // mild pride of authorship
+      v += Math.random()*0.2;
+      if(v > best){ best = v; pick = i; }
+    });
+    return pick;
+  });
+  const counts = G.props.map((_,i) => votes.filter(v => v === i).length);
+  const max = Math.max(...counts);
+  const lead = counts.map((c,i) => c === max ? i : -1).filter(i => i >= 0);
+  const chairIdx = G.turnNo[p] % members.length;
+  let win, how;
+  if(lead.length === 1){
+    win = lead[0];
+    how = "Proposal " + (win+1) + " passes " + max + (max === members.length ? " to 0" : " of " + members.length) + ".";
+  } else {
+    // the chair's vote decides; if the chair abstained, the next member in order does
+    let who = -1; win = -1;
+    for(let k=0;k<members.length;k++){
+      const idx = (chairIdx + k) % members.length;
+      if(lead.includes(votes[idx])){ win = votes[idx]; who = idx; break; }
+    }
+    if(win < 0){ win = lead[0]; who = chairIdx; }
+    how = "Split vote. " + (who === chairIdx ? "Chair " + members[who].name : "Chair " + members[chairIdx].name + " abstained, so " + members[who].name) + " breaks the tie for proposal " + (win+1) + ".";
+  }
+  log("Votes: " + members.map((mb,i) => mb.name + (votes[i] < 0 ? " abstains" : " \u2192 " + (votes[i]+1))).join(", ") + ". " + how);
+  G.turnNo[p]++;
+  execute(G.props[win].m);
+}
+
+function execute(m){
+  const mover = G.S.turn;
+  log(SIDE[mover] + " plays: " + describe(G.S, m) + ".");
+  G.last = m.di; G.sel = null; G.opts = []; G.props = []; G.passes = 0;
+  G.S = apply(G.S, m);
+  if(arrivedAll(G.S, mover)){ finish(); return; }
+  G.plies++;
+  if(G.plies >= MAXPLIES){ finish(true); return; }
+  startTurn();
+}
+
+function finish(timeUp){
+  const r = result(G.S, G.score);
+  const t = tally(G.S);
+  let line;
+  if(r === -1) line = "A perfect tie: the game is a draw.";
+  else if(G.score === "dem" && t.dist[0] !== t.dist[1]) line = SIDE[r] + " wins the majority: " + t.dist[r] + " districts to " + t.dist[1-r] + ".";
+  else line = SIDE[r] + " wins on total, " + t.sum[r] + " to " + t.sum[1-r] + (G.score === "dem" ? " (districts were tied)." : ".");
+  if(timeUp) line = "Session limit reached. " + line;
+  G.over = {r, line};
+  G.phase = "over";
+  log(line);
+  render();
+}
+
+/* ---------- rendering ---------- */
+const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function pipHtml(t){
+  let h = "";
+  for(let i=0;i<9;i++) h += '<i class="' + (PIPS[t].includes(i) ? "on" : "") + '"></i>';
+  return h;
+}
+
+function render(){
+  // councils
+  $("councils").innerHTML = [0,1].map(p => {
+    const chair = COUNCIL[p][G.turnNo[p] % 3].name;
+    const names = COUNCIL[p].map(m => m.name + (m.name === chair ? " \u2605" : "")).join(", ");
+    return '<div class="council'+(G.S.turn===p && !G.over?" turn":"")+'"><b>'+SIDE[p]+' council</b><span>'+names+'</span></div>';
+  }).join("");
+
+  // status
+  const st = $("status");
+  st.className = "status" + (G.over ? " over" : "");
+  if(G.over) st.textContent = G.over.line;
+  else if(G.phase === "wait") st.textContent = G.S.turn === 1 ? "The Black council is voting..." : "The ballot is being drawn up...";
+  else if(G.phase === "vote") st.textContent = "The ballot is open. Everyone votes, including you.";
+  else if(G.sel !== null) st.textContent = G.opts.length ? "Choose where to propose moving this die." : "That die has no legal moves. Pick another.";
+  else st.textContent = "Add your own proposal: pick one of your dice.";
+
+  // board
+  const voting = G.phase === "vote";
+  const propDice = new Set(voting ? G.props.map(x => x.m.di) : []);
+  let h = "";
+  const byPos = {};
+  G.S.dice.forEach((d,i) => { byPos[d.r*COLS+d.c] = i; });
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cls = "cell" + (r === ROWS-1 ? " b0" : r === 0 ? " b1" : "");
+      let inner = "";
+      const di = byPos[r*COLS+c];
+      if(di !== undefined){
+        const d = G.S.dice[di];
+        inner = '<button class="die o'+d.o+(G.sel===di?" sel":"")+(propDice.has(di)?" pd":"")+(G.last===di?" last":"")+'" data-die="'+di+
+          '" aria-label="'+SIDE[d.o]+' die showing '+d.t+' at '+sq(r,c)+'">'+pipHtml(d.t)+'</button>';
+      } else if(voting){
+        G.props.forEach((x,idx) => {
+          if(x.m.r === r && x.m.c === c)
+            inner += '<button class="chip pr" data-vote="'+idx+'" aria-label="Vote for proposal '+(idx+1)+'">'+(idx+1)+'<small>'+x.by.join("+")+'</small></button>';
+        });
+      } else {
+        G.opts.forEach((m,idx) => {
+          if(m.r === r && m.c === c)
+            inner += '<button class="chip k-'+m.kind+'" data-mv="'+idx+'" aria-label="'+m.kind+' to '+sq(r,c)+', showing '+m.t+'">'+m.t+'<small>'+(m.kind==="tilt+jump"?"t+j":m.kind)+'</small></button>';
+        });
+      }
+      h += '<div class="'+cls+'">'+inner+'</div>';
+    }
+  }
+  $("board").innerHTML = h;
+
+  // actions
+  const ac = $("actions");
+  if(G.phase === "propose"){
+    ac.innerHTML = '<button class="alt" data-cancel="1">Back to the ballot</button><p class="hint">Your proposal joins the ballot. You still have to vote on it with everyone else.</p>';
+  } else if(G.phase === "vote"){
+    ac.innerHTML = '<div class="cards">' + G.props.map((x,i) =>
+      '<button class="card" data-vote="'+i+'"><span class="num">'+(i+1)+'</span><span><span class="t">'+x.desc+'</span><br><span class="by">Proposed by '+x.by.join(" and ")+'</span></span></button>'
+    ).join("") + '</div><p style="margin:10px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="alt" data-add="1">Add my own proposal</button><button class="alt" data-vote="-1">Abstain (present, no preference)</button></p><p class="hint">Dashed outlines mark the dice involved. Your vote counts the same as each adviser\'s. You can abstain, but the vote always happens with or without your preference. A split is decided by the chair (\u2605).</p>';
+  } else ac.innerHTML = "";
+
+  $("legend").style.display = G.phase === "propose" ? "flex" : "none";
+
+  // districts + totals
+  const t = tally(G.S);
+  $("strip").innerHTML = t.cols.map(x =>
+    '<div class="sc'+(x.w===0?" w0":x.w===1?" w1":"")+'">'+(x.a||"\u2013")+" : "+(x.b||"\u2013")+'</div>').join("");
+  const dem = G.score === "dem";
+  $("totals").innerHTML =
+    '<div class="'+(dem?"decides":"")+'"><span>Districts won'+(dem?" (decides)":"")+'</span><span>White '+t.dist[0]+' : '+t.dist[1]+' Black</span></div>'+
+    '<div class="'+(dem?"":"decides")+'"><span>Total of faces'+(dem?" (tiebreak)":" (decides)")+'</span><span>White '+t.sum[0]+' : '+t.sum[1]+' Black</span></div>'+
+    '<div><span>Turns left in the session</span><span>'+Math.max(0,Math.ceil((MAXPLIES-G.plies)/2))+' each</span></div>';
+
+  $("log").innerHTML = G.log.slice(0,60).map(x => "<div>"+x+"</div>").join("");
+}
+
+function addToBallot(m){
+  const k = mkey(m);
+  const x = G.props.find(q => q.key === k);
+  if(x){ if(!x.by.includes("You")) x.by.push("You"); }
+  else G.props.push({key:k, m, by:["You"], desc:describe(G.S, m)});
+  log("You add to the ballot: " + describe(G.S, m) + ".");
+  G.sel = null; G.opts = []; G.phase = "vote";
+  render();
+}
+
+function humanVote(i){
+  if(G.phase !== "vote" || G.over) return;
+  G.phase = "wait";
+  castVotes(0, i);
+}
+
+$("board").addEventListener("click", e => {
+  if(!G || G.over) return;
+  const vote = e.target.closest("[data-vote]");
+  if(vote){ humanVote(Number(vote.dataset.vote)); return; }
+  if(G.phase !== "propose") return;
+  const chip = e.target.closest("[data-mv]");
+  if(chip){
+    addToBallot(G.opts[Number(chip.dataset.mv)]);
+    return;
+  }
+  const die = e.target.closest("[data-die]");
+  if(die){
+    const di = Number(die.dataset.die);
+    if(G.S.dice[di].o !== 0) return;
+    if(G.sel === di){ G.sel = null; G.opts = []; }
+    else { G.sel = di; G.opts = movesFor(G.S, di); }
+    render();
+  }
+});
+$("actions").addEventListener("click", e => {
+  if(!G || G.over) return;
+  const vote = e.target.closest("[data-vote]");
+  if(vote){ humanVote(Number(vote.dataset.vote)); return; }
+  if(e.target.closest("[data-add]") && G.phase === "vote"){
+    G.phase = "propose"; G.sel = null; G.opts = [];
+    render();
+  } else if(e.target.closest("[data-cancel]") && G.phase === "propose"){
+    G.phase = "vote"; G.sel = null; G.opts = [];
+    render();
+  }
+});
+$("newBtn").addEventListener("click", newGame);
+$("optScore").addEventListener("change", newGame);
+
+newGame();
+})();
+</script>
+</body>
+</html>
